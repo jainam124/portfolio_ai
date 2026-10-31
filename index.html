@@ -252,7 +252,8 @@ h1 .thin{font-family:'Bodoni Moda',Georgia,serif;font-style:italic;font-weight:4
 #chat input:focus{border-color:var(--acc)}
 #chat form button{background:var(--fg);color:var(--bg);border:0;border-radius:10px;padding:0 14px;font:500 13px var(--body);cursor:pointer}
 
-@media(prefers-reduced-motion:reduce){html:not(.fm) *,html:not(.fm) *::before,html:not(.fm) *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+@media(prefers-reduced-motion:reduce){html:not(.fm) *,html:not(.fm) *::before,html:not(.fm) *::after{animation-iteration-count:1!important;animation-duration:.01ms!important;transition-duration:.18s!important}
+html:not(.fm) .marq div,html:not(.fm) #chatbtn::after,html:not(.fm) .eyebrow .dot,html:not(.fm) .scroll i{animation:none!important}}
 #dbg{position:fixed;left:12px;bottom:12px;z-index:200;background:rgba(0,0,0,.82);border:1px solid #333;border-radius:8px;padding:10px 12px;font:12px/1.5 ui-monospace,Menlo,monospace;color:#6cf0c2;white-space:pre;pointer-events:none}
 </style>
 </head>
@@ -380,7 +381,8 @@ const FULL=/motion=full/.test(location.search);if(FULL)document.documentElement.
 const RM=!FULL&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- smooth scroll ---------- */
-const lenis=new Lenis({lerp:.11,smoothWheel:true,wheelMultiplier:1});
+const WHEEL=parseFloat(new URLSearchParams(location.search).get('wheel'))||1;
+const lenis=new Lenis({lerp:.11,smoothWheel:true,wheelMultiplier:WHEEL});
 lenis.on('scroll',ScrollTrigger.update);
 gsap.ticker.add(t=>lenis.raf(t*1000));gsap.ticker.lagSmoothing(0);
 document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click',e=>{const id=a.getAttribute('href');if(id.length>1&&document.querySelector(id)){e.preventDefault();lenis.scrollTo(id,{offset:0,duration:1.4})}}));
@@ -593,11 +595,15 @@ document.getElementById('cf').addEventListener('submit',e=>{e.preventDefault();c
 document.getElementById('cs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;ask(b.textContent.startsWith('Match')?'Job description: Data Engineer with strong SQL and Python, BigQuery or Snowflake, Airflow, dbt, Spark, CI/CD and GCP. Nice to have: Power BI, Kafka.':b.textContent)});
 
 
-/* ---------- ?debug overlay: shows what this device is doing ---------- */
-if(/debug/.test(location.search)){const d=document.createElement('div');d.id='dbg';document.body.appendChild(d);let last=performance.now(),dts=[];
-  (function f(t){dts.push(t-last);last=t;if(dts.length>90)dts.shift();requestAnimationFrame(f)})(last);
-  setInterval(()=>{const m=[...dts].sort((a,b)=>a-b)[Math.floor(dts.length/2)]||16.7;
-    d.textContent=`refresh   ${Math.round(1000/m)} Hz\nreduced   ${matchMedia('(prefers-reduced-motion: reduce)').matches?'YES (animations shortened)':'no'}${FULL?'  [forced full]':''}\nviewport  ${innerWidth}x${innerHeight} @${devicePixelRatio}x\nscroll    ${Math.round(scrollY)} px  v=${(lenis.velocity||0).toFixed(1)}`},400)}
+/* ---------- ?debug overlay: shows what this device is actually doing ---------- */
+if(/debug/.test(location.search)){const d=document.createElement('div');d.id='dbg';document.body.appendChild(d);
+  let last=performance.now(),dts=[],wn=0,wsum=0,wpk=0,wmode=0,wps=0,vpk=0,spk=0,lastY=scrollY,lastT=performance.now();
+  (function f(t){dts.push(t-last);last=t;if(dts.length>120)dts.shift();requestAnimationFrame(f)})(last);
+  addEventListener('wheel',e=>{wn++;wsum+=Math.abs(e.deltaY);wpk=Math.max(wpk,Math.abs(e.deltaY));wmode=e.deltaMode},{passive:true});
+  setInterval(()=>{const now=performance.now(),dt=(now-lastT)/1000;lastT=now;wps=Math.round(wn/dt);const sp=Math.abs(scrollY-lastY)/dt;lastY=scrollY;spk=Math.max(spk*.9,sp);vpk=Math.max(vpk*.97,Math.abs(lenis.velocity||0));
+    const so=[...dts].sort((a,b)=>a-b),m=so[Math.floor(so.length/2)]||16.7;
+    d.textContent=`refresh   ${Math.round(1000/m)} Hz  (frame ${so[0].toFixed(1)}/${m.toFixed(1)}/${so[so.length-1].toFixed(1)} ms min/med/max)\nreduced   ${matchMedia('(prefers-reduced-motion: reduce)').matches?'YES (animations shortened)':'no'}${FULL?'  [forced full]':''}\nviewport  ${innerWidth}x${innerHeight} @${devicePixelRatio}x\nwheel     x${WHEEL}  ${wps} ev/s  peak dY ${Math.round(wpk)}  mode ${wmode}\nscroll    ${Math.round(scrollY)} px   speed ${Math.round(spk)} px/s   lenis v ${vpk.toFixed(1)}`;wn=0;wsum=0},500);
+  addEventListener('keydown',e=>{if(e.key==='r'){wpk=0;spk=0;vpk=0}})}
 addEventListener('load',()=>ScrollTrigger.refresh());
 </script>
 </body>
