@@ -252,7 +252,8 @@ h1 .thin{font-family:'Bodoni Moda',Georgia,serif;font-style:italic;font-weight:4
 #chat input:focus{border-color:var(--acc)}
 #chat form button{background:var(--fg);color:var(--bg);border:0;border-radius:10px;padding:0 14px;font:500 13px var(--body);cursor:pointer}
 
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+@media(prefers-reduced-motion:reduce){html:not(.fm) *,html:not(.fm) *::before,html:not(.fm) *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+#dbg{position:fixed;left:12px;bottom:12px;z-index:200;background:rgba(0,0,0,.82);border:1px solid #333;border-radius:8px;padding:10px 12px;font:12px/1.5 ui-monospace,Menlo,monospace;color:#6cf0c2;white-space:pre;pointer-events:none}
 </style>
 </head>
 <body>
@@ -375,10 +376,11 @@ h1 .thin{font-family:'Bodoni Moda',Georgia,serif;font-style:italic;font-weight:4
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
 <script>
 gsap.registerPlugin(ScrollTrigger);
-const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FULL=/motion=full/.test(location.search);if(FULL)document.documentElement.classList.add('fm');
+const RM=!FULL&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- smooth scroll ---------- */
-const lenis=new Lenis({lerp:.14,smoothWheel:true,wheelMultiplier:1.15});
+const lenis=new Lenis({lerp:.11,smoothWheel:true,wheelMultiplier:1});
 lenis.on('scroll',ScrollTrigger.update);
 gsap.ticker.add(t=>lenis.raf(t*1000));gsap.ticker.lagSmoothing(0);
 document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click',e=>{const id=a.getAttribute('href');if(id.length>1&&document.querySelector(id)){e.preventDefault();lenis.scrollTo(id,{offset:0,duration:1.4})}}));
@@ -389,7 +391,7 @@ const clk=document.getElementById('clock');setInterval(()=>clk.textContent='Loca
 /* ---------- cursor ---------- */
 const cur=document.getElementById('cur');let cx=innerWidth/2,cy=innerHeight/2,tx=cx,ty=cy;
 addEventListener('pointermove',e=>{tx=e.clientX;ty=e.clientY});
-gsap.ticker.add(()=>{cx+=(tx-cx)*.18;cy+=(ty-cy)*.18;cur.style.transform=`translate(${cx}px,${cy}px) translate(-50%,-50%)`});
+gsap.ticker.add(()=>{const ca=1-Math.pow(1-.18,Math.min(gsap.ticker.deltaRatio(60),4));cx+=(tx-cx)*ca;cy+=(ty-cy)*ca;cur.style.transform=`translate(${cx}px,${cy}px) translate(-50%,-50%)`});
 document.querySelectorAll('.proj').forEach(p=>{p.addEventListener('pointerenter',()=>cur.classList.add('big'));p.addEventListener('pointerleave',()=>cur.classList.remove('big'))});
 /* magnetic */
 document.querySelectorAll('.mag').forEach(el=>{el.addEventListener('pointermove',e=>{const r=el.getBoundingClientRect();gsap.to(el,{x:(e.clientX-r.left-r.width/2)*.25,y:(e.clientY-r.top-r.height/2)*.4,duration:.4})});el.addEventListener('pointerleave',()=>gsap.to(el,{x:0,y:0,duration:.6,ease:'elastic.out(1,.4)'}))});
@@ -417,11 +419,13 @@ function nextShape(){ci=(ci+1)%CYCLE.length;shape=CYCLE[ci][0];targets(shape);se
 setTimeout(nextShape,1400);
 const hi=document.getElementById('hi');
 lenis.on('scroll',e=>{vel=e.velocity});
-function draw(){
+let lastTs=0;
+function draw(ts){
+  const fr=lastTs?Math.min((ts-lastTs)/16.667,4):1;lastTs=ts;
   ctx.clearRect(0,0,FW,FH);
   const g=ctx.createRadialGradient(FW*.7,FH*.3,0,FW*.7,FH*.3,FW*.7);g.addColorStop(0,'rgba(255,143,63,.10)');g.addColorStop(1,'rgba(10,10,14,0)');ctx.fillStyle=g;ctx.fillRect(0,0,FW,FH);
-  const k=.045,sv=Math.min(Math.abs(vel)*.0025,.25);
-  PTS.forEach(p=>{p.x+=(p.tx-p.x)*k;p.y+=(p.ty-p.y)*k+sv*(vel>0?-.004:.004)});
+  const k=1-Math.pow(1-.045,fr),sv=Math.min(Math.abs(vel)*.0025,.25);
+  PTS.forEach(p=>{p.x+=(p.tx-p.x)*k;p.y+=(p.ty-p.y)*k+sv*(vel>0?-.004:.004)*fr});
   let settle=0;PTS.forEach(p=>settle+=Math.abs(p.x-p.tx)+Math.abs(p.y-p.ty));settle/=PN;const la=Math.max(0,1-settle*60);
   if((shape===1||shape===3)&&la>0){ctx.strokeStyle=`rgba(108,240,194,${.26*la})`;ctx.lineWidth=1*DPR;
     if(shape===1){ctx.beginPath();[...PTS].sort((a,b)=>a.x-b.x).forEach((p,i)=>i?ctx.lineTo(p.x*FW,p.y*FH):ctx.moveTo(p.x*FW,p.y*FH));ctx.stroke()}
@@ -588,6 +592,12 @@ document.getElementById('chatx').addEventListener('click',()=>openChat(false));
 document.getElementById('cf').addEventListener('submit',e=>{e.preventDefault();const i=document.getElementById('ci');ask(i.value);i.value=''});
 document.getElementById('cs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;ask(b.textContent.startsWith('Match')?'Job description: Data Engineer with strong SQL and Python, BigQuery or Snowflake, Airflow, dbt, Spark, CI/CD and GCP. Nice to have: Power BI, Kafka.':b.textContent)});
 
+
+/* ---------- ?debug overlay: shows what this device is doing ---------- */
+if(/debug/.test(location.search)){const d=document.createElement('div');d.id='dbg';document.body.appendChild(d);let last=performance.now(),dts=[];
+  (function f(t){dts.push(t-last);last=t;if(dts.length>90)dts.shift();requestAnimationFrame(f)})(last);
+  setInterval(()=>{const m=[...dts].sort((a,b)=>a-b)[Math.floor(dts.length/2)]||16.7;
+    d.textContent=`refresh   ${Math.round(1000/m)} Hz\nreduced   ${matchMedia('(prefers-reduced-motion: reduce)').matches?'YES (animations shortened)':'no'}${FULL?'  [forced full]':''}\nviewport  ${innerWidth}x${innerHeight} @${devicePixelRatio}x\nscroll    ${Math.round(scrollY)} px  v=${(lenis.velocity||0).toFixed(1)}`},400)}
 addEventListener('load',()=>ScrollTrigger.refresh());
 </script>
 </body>
