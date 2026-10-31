@@ -30,7 +30,8 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-
 @media(hover:none){body{cursor:auto}}
 a{color:inherit;text-decoration:none}
 ::selection{background:var(--acc);color:#140a02}
-.wrap{width:min(1240px,100% - 2*max(20px,env(safe-area-inset-left,0px)));margin-inline:auto}
+:root{--maxw:1240px}
+.wrap{width:min(var(--maxw),100% - 2*max(20px,env(safe-area-inset-left,0px)));margin-inline:auto}
 .mono{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
 .grain{position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.07;mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
@@ -48,7 +49,8 @@ a{color:inherit;text-decoration:none}
 @media(hover:none){#cur{display:none}}
 
 /* nav */
-nav{position:fixed;top:0;left:0;right:0;z-index:40;padding:18px 0;mix-blend-mode:difference}
+nav{position:fixed;top:0;left:0;right:0;z-index:40;padding:18px 0;border-bottom:1px solid transparent;transition:background .35s,border-color .35s,padding .35s}
+nav.solid{background:rgba(10,10,14,.74);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom-color:rgba(236,232,223,.06);padding:12px 0}
 nav .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px}
 nav .logo{font-family:var(--disp);font-weight:800;font-size:18px;letter-spacing:-.02em}
 nav ul{display:flex;gap:26px;list-style:none;margin:0;padding:0}
@@ -58,7 +60,7 @@ nav li a:hover::after{right:0}
 @media(max-width:720px){nav ul{display:none}}
 
 /* hero */
-#hero{position:relative;min-height:100svh;display:grid;align-content:end;padding-bottom:52px;overflow:hidden}
+#hero{position:relative;min-height:100svh;display:grid;align-content:end;padding-top:90px;padding-bottom:52px;overflow:hidden}
 #field{position:absolute;inset:0;width:100%;height:100%;display:block}
 #hero .wrap{position:relative;display:grid;gap:22px}
 .eyebrow{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
@@ -304,6 +306,36 @@ html:not(.fm) .marq div,html:not(.fm) #chatbtn::after,html:not(.fm) .eyebrow .do
   #chat{right:12px;width:calc(100vw - 24px);bottom:calc(max(16px,env(safe-area-inset-bottom,0px)) + 64px);height:min(520px,calc(100svh - 130px))}
   .menu-open #chatbtn,.menu-open #nudge{opacity:0;pointer-events:none}
 }
+
+/* ---------- responsive pass: every size from 320px phones to ultrawide ---------- */
+.board{width:min(100%,calc(100svh - 190px))}
+@media(max-width:820px){
+  #hero{padding-top:calc(58px + clamp(240px,36svh,620px));padding-bottom:88px}
+  h1{font-size:clamp(76px,25vw,190px)}
+  .board{width:min(100%,calc(54svh - 30px))}
+  #chat{width:min(420px,calc(100vw - 24px))}
+  #nudge{white-space:nowrap;max-width:none;padding:9px 30px 9px 13px}
+  #menu{overflow-y:auto}
+  #menu a.ml{font-size:clamp(34px,min(15vw,11svh),88px)}
+}
+@media(max-width:820px),(max-height:619px){#numbers .pin{height:auto;padding:90px 0;overflow:visible}}
+@media(min-width:641px) and (max-width:860px){.nums{grid-template-columns:repeat(4,1fr)}}
+@media(min-width:600px) and (max-width:860px){.pgrid{grid-template-columns:1fr 1fr}.proj:nth-child(1){grid-column:span 2}.sgrid{grid-template-columns:1fr 1fr}}
+@media(max-height:560px){
+  #hero{padding-top:78px;padding-bottom:48px}
+  h1{font-size:clamp(46px,min(13vw,26svh),110px)}
+  .sub p{font-size:15px}
+}
+@media(min-width:1700px){
+  :root{--maxw:1560px}
+  body{font-size:19px}
+  h1{font-size:clamp(56px,11vw,300px)}
+  .sub p{font-size:clamp(17px,1.15vw,28px)}
+  .state{font-size:clamp(28px,3.3vw,80px)}
+  .h2{font-size:clamp(40px,6vw,150px)}
+  .num .v{font-size:clamp(52px,7vw,170px)}
+  nav li a{font-size:15px}
+}
 </style>
 </head>
 <body>
@@ -466,7 +498,16 @@ const NC=6,NR=5,NODES=[],EDGES=[];                                              
 for(let c=0;c<NC;c++)for(let r=0;r<NR;r++)NODES.push({x:.1+c*.16,y:.2+r*.15+(c%2)*.075});
 for(let c=0;c<NC-1;c++)for(let r=0;r<NR;r++)for(let dr=-1;dr<=1;dr++){const r2=r+dr;if(r2>=0&&r2<NR)EDGES.push([c*NR+r,(c+1)*NR+r2])}
 let shape=0,vel=0,last=0,portrait={cx:.77,top:.2,h:.6};
-function portraitBox(){const mobile=FW<FH;portrait=mobile?{cx:.56,top:.07,h:.40}:{cx:.77,top:.2,h:.6};}
+function portraitBox(){
+  const cw=cv.clientWidth,ch=cv.clientHeight;
+  if(FW<FH){                                                   // phones and tablets in portrait: fill the free space above the name
+    const hb=cv.getBoundingClientRect(),eb=document.querySelector('.eyebrow').getBoundingClientRect(),navH=document.querySelector('nav').offsetHeight;
+    const zone=Math.max(120,(eb.top-hb.top)-navH-12),hpx=Math.min(zone,cw*.98/PD.a),pwf=hpx*PD.a/cw;
+    portrait={cx:Math.min(1-pwf/2-.005,Math.max(pwf/2+.005,.54)),top:(navH+6+(zone-hpx)/2)/ch,h:hpx/ch};
+  }else{                                                       // landscape and desktop: sit at the right edge of the content column
+    const wr=document.querySelector('#hero .wrap').getBoundingClientRect(),pwPx=.6*ch*PD.a;
+    portrait={cx:Math.min(.77,(wr.right+60-pwPx/2)/cw),top:.2,h:.6};
+  }}
 function targets(k){
   portraitBox();const pw=portrait.h*(FH/FW)*PD.a,gs=()=>Math.random()+Math.random()+Math.random()-1.5;
   PTS.forEach((p,i)=>{const u=i/PN;
@@ -477,6 +518,7 @@ function targets(k){
     else{p.tx=portrait.cx-pw/2+p.px*pw;p.ty=portrait.top+p.py*portrait.h}});
 }
 function size(){FW=cv.width=cv.clientWidth*DPR;FH=cv.height=cv.clientHeight*DPR;targets(shape)}size();
+if(document.fonts)document.fonts.ready.then(size);addEventListener('load',size);
 targets(0);PTS.forEach(p=>{p.x=p.tx;p.y=p.ty});
 addEventListener('resize',size);
 const CYCLE=[[4,9000],[0,2600],[1,3200],[2,3200],[3,4200]];let ci=-1;
@@ -544,7 +586,7 @@ ScrollTrigger.create({trigger:st,start:'top 80%',end:'bottom 45%',scrub:true,onU
 
 /* ---------- numbers pin + count ---------- */
 const numSec=document.getElementById('numbers');
-ScrollTrigger.create({trigger:numSec,start:'top top',end:'+=100%',pin:'.pin',pinSpacing:true});
+if(innerWidth>820&&innerHeight>=620)ScrollTrigger.create({trigger:numSec,start:'top top',end:'+=100%',pin:'.pin',pinSpacing:true});
 document.querySelectorAll('[data-to]').forEach(el=>{const to=+el.dataset.to;gsap.fromTo(el,{textContent:0},{textContent:to,snap:{textContent:1},duration:1.8,ease:'power3.out',scrollTrigger:{trigger:numSec,start:'top 60%'}})});
 gsap.from('.num',{y:40,opacity:0,stagger:.08,duration:1,ease:'power3.out',scrollTrigger:{trigger:numSec,start:'top 60%'}});
 
@@ -681,12 +723,12 @@ async function ask(q){if(!q.trim())return;add('u',q.length>140?q.slice(0,140)+'�
   const hits=retrieve(q);t.innerHTML=gen(q)+(hits.length?`<span class="src">sources · ${hits.map(h=>`<b>${h.c.id}</b>`).join(' · ')}</span>`:'');cm.scrollTop=cm.scrollHeight}
 const MOBILE=matchMedia('(max-width:820px)').matches;
 const nudge=document.getElementById('nudge');let nudged=false;
-if(MOBILE)lenis.on('scroll',e=>{btn.classList.toggle('compact',e.scroll>420&&!chat.classList.contains('open'));if(e.scroll>300)nudge.classList.remove('on')});
+if(MOBILE)lenis.on('scroll',e=>{btn.classList.toggle('compact',e.scroll>(innerHeight<700?40:420)&&!chat.classList.contains('open'));if(e.scroll>300)nudge.classList.remove('on')});
 function openChat(o){chat.classList.toggle('open',o);btn.classList.toggle('open',o);nudge.classList.remove('on');if(o&&!cm.children.length)add('a',"Hi, I'm Jainam's résumé bot. Ask me anything about his work, or paste a job description and I'll score the fit in seconds.")}
 btn.addEventListener('click',()=>openChat(!chat.classList.contains('open')));
 nudge.addEventListener('click',e=>{if(e.target.id!=='nudgex')openChat(true)});
-document.getElementById('nudgex').addEventListener('click',()=>{nudge.classList.remove('on');nudged=true});
-setTimeout(()=>{if(!chat.classList.contains('open')&&!nudged){if(!MOBILE||scrollY<300){nudge.classList.add('on');setTimeout(()=>nudge.classList.remove('on'),MOBILE?5500:9000)}}},MOBILE?3200:6000);
+
+setTimeout(()=>{if(!chat.classList.contains('open')&&!nudged){if(!MOBILE||(scrollY<300&&innerHeight>=700)){nudge.classList.add('on');setTimeout(()=>nudge.classList.remove('on'),MOBILE?5500:9000)}}},MOBILE?3200:6000);
 ScrollTrigger.create({trigger:'#work',start:'top 60%',once:true,onEnter(){if(!MOBILE&&!chat.classList.contains('open')&&!nudged){nudge.innerHTML='<button class="x" id="nudgex2" aria-label="Dismiss">×</button>Want the short version? <b>Ask me</b> "what\'s his biggest impact?"';nudge.classList.add('on');document.getElementById('nudgex2').addEventListener('click',()=>{nudge.classList.remove('on');nudged=true});setTimeout(()=>nudge.classList.remove('on'),8000)}}});
 document.getElementById('chatx').addEventListener('click',()=>openChat(false));
 document.getElementById('cf').addEventListener('submit',e=>{e.preventDefault();const i=document.getElementById('ci');ask(i.value);i.value=''});
@@ -703,6 +745,9 @@ if(/debug/.test(location.search)){const d=document.createElement('div');d.id='db
     d.textContent=`refresh   ${Math.round(1000/m)} Hz  (frame ${so[0].toFixed(1)}/${m.toFixed(1)}/${so[so.length-1].toFixed(1)} ms min/med/max)\nreduced   ${matchMedia('(prefers-reduced-motion: reduce)').matches?(FULL?'browser says YES, ignored (full motion)':'YES (animations shortened)'):'no'}\nviewport  ${innerWidth}x${innerHeight} @${devicePixelRatio}x\nwheel     x${WHEEL}  ${wps} ev/s  peak dY ${Math.round(wpk)}  mode ${wmode}\nscroll    ${Math.round(scrollY)} px   speed ${Math.round(spk)} px/s   lenis v ${vpk.toFixed(1)}\ndraw      ${window.__dms.toFixed(2)} ms  (${PN} pts)`;wn=0;wsum=0},500);
   addEventListener('keydown',e=>{if(e.key==='r'){wpk=0;spk=0;vpk=0}})}
 
+const navEl=document.querySelector('nav');lenis.on('scroll',e=>navEl.classList.toggle('solid',e.scroll>60));navEl.classList.toggle('solid',scrollY>60);
+if(MOBILE)nudge.innerHTML='<button class="x" id="nudgex" aria-label="Dismiss">×</button>Recruiter? <b>Ask me anything</b>';
+document.getElementById('nudgex').addEventListener('click',()=>{nudge.classList.remove('on');nudged=true});
 /* ---------- phone menu ---------- */
 const menuEl=document.getElementById('menu'),menuBtn=document.getElementById('menubtn');
 function setMenu(o){menuEl.classList.toggle('open',o);menuEl.setAttribute('aria-hidden',!o);menuBtn.setAttribute('aria-expanded',o);document.documentElement.classList.toggle('menu-open',o);o?lenis.stop():lenis.start()}
